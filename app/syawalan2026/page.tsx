@@ -33,6 +33,7 @@ export default function CameraApp() {
   const [overlayLoaded, setOverlayLoaded] = useState(false);
   const [flashAnim, setFlashAnim] = useState(false);
   const [hasMultipleCameras, setHasMultipleCameras] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("photo");
   const [isRecording, setIsRecording] = useState(false);
@@ -44,6 +45,9 @@ export default function CameraApp() {
     const update = () => setViewportSize({ w: window.innerWidth, h: window.innerHeight });
     update();
     window.addEventListener("resize", update);
+    // Detect mobile/Android
+    const mobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    setIsMobile(mobile);
     return () => window.removeEventListener("resize", update);
   }, []);
 
@@ -72,12 +76,20 @@ export default function CameraApp() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedFormat.id]);
 
-  // Check multiple cameras
-  useEffect(() => {
-    navigator.mediaDevices?.enumerateDevices().then((devices) => {
-      setHasMultipleCameras(devices.filter((d) => d.kind === "videoinput").length > 1);
-    });
+  // Check multiple cameras — re-check after permission granted (Android needs this)
+  const checkCameras = useCallback(async () => {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter((d) => d.kind === "videoinput");
+      setHasMultipleCameras(videoDevices.length > 1);
+    } catch {
+      // fallback: assume mobile has multiple cameras
+    }
   }, []);
+
+  useEffect(() => {
+    checkCameras();
+  }, [checkCameras]);
 
   // Start camera
   useEffect(() => {
@@ -95,7 +107,12 @@ export default function CameraApp() {
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           videoRef.current.onloadedmetadata = () => {
-            if (!cancelled) { videoRef.current?.play(); setIsCameraReady(true); }
+            if (!cancelled) {
+              videoRef.current?.play();
+              setIsCameraReady(true);
+              // Re-enumerate after permission granted — Android needs this
+              checkCameras();
+            }
           };
         }
       } catch (err) {
@@ -110,7 +127,7 @@ export default function CameraApp() {
       cancelAnimationFrame(animFrameRef.current);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [facingMode, selectedFormat.width, selectedFormat.height]);
+  }, [facingMode, selectedFormat.width, selectedFormat.height, checkCameras]);
 
   // Render loop
   useEffect(() => {
@@ -591,7 +608,7 @@ export default function CameraApp() {
         }}
       >
         {/* Camera flip */}
-        {hasMultipleCameras && !hasResult && (
+        {(isMobile || hasMultipleCameras) && !hasResult && (
           <button
             onClick={toggleCamera}
             title="Ganti kamera"
