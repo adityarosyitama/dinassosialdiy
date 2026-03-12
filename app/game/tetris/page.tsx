@@ -489,42 +489,56 @@ export default function TetrisPage(): React.ReactElement {
   }
 
   // ── Shared control buttons (used in both desktop side panel & mobile row) ──
+  function makeButtonHandlers(action: () => void): {
+    onTouchStart: (e: React.TouchEvent) => void;
+    onClick: (e: React.MouseEvent) => void;
+  } {
+    let touchFired = false;
+    return {
+      onTouchStart: (e: React.TouchEvent) => {
+        e.preventDefault();
+        touchFired = true;
+        action();
+        setTimeout(() => { touchFired = false; }, 300);
+      },
+      onClick: (e: React.MouseEvent) => {
+        if (touchFired) return;
+        action();
+      },
+    };
+  }
+
   function ControlButtons(): React.ReactElement {
     return (
       <>
         <button
-          onTouchStart={(e) => { e.preventDefault(); handleRotate(); }}
-          onClick={handleRotate}
+          {...makeButtonHandlers(handleRotate)}
           style={{ ...btnStyle("#bf00ff"), width: "100%" }}
         >
           ↻ ROTATE
         </button>
         <div style={{ display: "flex", gap: 6 }}>
           <button
-            onTouchStart={(e) => { e.preventDefault(); handleMoveLeft(); }}
-            onClick={handleMoveLeft}
+            {...makeButtonHandlers(handleMoveLeft)}
             style={{ ...btnStyle("#0066ff"), flex: 1, minWidth: 0 }}
           >
             ◀
           </button>
           <button
-            onTouchStart={(e) => { e.preventDefault(); moveDown(); }}
-            onClick={moveDown}
+            {...makeButtonHandlers(moveDown)}
             style={{ ...btnStyle("#00ff6a"), flex: 1, minWidth: 0 }}
           >
             ▼
           </button>
           <button
-            onTouchStart={(e) => { e.preventDefault(); handleMoveRight(); }}
-            onClick={handleMoveRight}
+            {...makeButtonHandlers(handleMoveRight)}
             style={{ ...btnStyle("#ff8c00"), flex: 1, minWidth: 0 }}
           >
             ▶
           </button>
         </div>
         <button
-          onTouchStart={(e) => { e.preventDefault(); handleHardDrop(); }}
-          onClick={handleHardDrop}
+          {...makeButtonHandlers(handleHardDrop)}
           style={{ ...btnStyle("#ff2d55"), width: "100%" }}
         >
           ⬇ DROP
